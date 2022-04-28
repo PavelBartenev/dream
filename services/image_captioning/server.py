@@ -15,12 +15,17 @@ from transformers import GPT2Tokenizer
 import skimage.io as io
 import PIL.Image
 from model import ClipCaptionModel, generate_beam, generate2
+from pathlib import Path
  
 sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), integrations=[FlaskIntegration()])
  
- 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.info('!!!!!!!!!!!!!!!!!' + str(torch.__version__))
+dirs = os.listdir()
+for dir in dirs:
+    logger.info('?????????' + dir)
+#logger.info('????????????????????' + Path(__file__).absolute())
  
 D = torch.device
 CPU = torch.device('cpu')
@@ -36,9 +41,8 @@ def get_device(device_id: int) -> D:
 CUDA = get_device
  
 PRETRAINED_MODEL_PATH = os.environ.get("PRETRAINED_MODEL_PATH")
-current_directory = os.getcwd()
-save_path = os.path.join(current_directory, "pretrained_models")
-model_path = os.path.join(save_path, 'model_weights.pt')
+logger.info('!!!!!!!!!!!!!!!!!!!!!!!!' + PRETRAINED_MODEL_PATH)
+
  
 try:
    device = CUDA(0)

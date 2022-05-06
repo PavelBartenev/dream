@@ -22,7 +22,7 @@ sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), integrations=[FlaskIntegration()])
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info('!!!!!!!!!!!!!!!!!' + str(torch.__version__))
-dirs = os.listdir()
+dirs = os.listdir('/opt/conda/lib/python3.7/site-packages/data/models/')
 for dir in dirs:
     logger.info('?????????' + dir)
 #logger.info('????????????????????' + Path(__file__).absolute())
@@ -54,7 +54,7 @@ try:
  
    model = ClipCaptionModel(prefix_length)
  
-   model.load_state_dict(torch.load(PRETRAINED_MODEL_PATH, map_location=CPU))
+   model.load_state_dict(torch.load('/opt/conda/lib/python3.7/site-packages/data/models/coco_weights.pt', map_location=CPU))
  
    model = model.eval()
    model = model.to(device)
@@ -74,25 +74,27 @@ logging.getLogger("werkzeug").setLevel("WARNING")
 def respond():
    st_time = time.time()
  
-   image_path = request.json.get("text", [])
+   image_paths = request.json.get("text", [])
    try:
-       image = io.imread(image_path)
-       pil_image = PIL.Image.fromarray(image)
-       image = preprocess(pil_image).unsqueeze(0).to(device)
-       with torch.no_grad():
-           prefix = clip_model.encode_image(image).to(device, dtype=torch.float32)
-           prefix_embed = model.clip_project(prefix).reshape(1, prefix_length, -1)
-       use_beam_search = False
-       if use_beam_search:
-           generated_text_prefix = generate_beam(model, tokenizer, embed=prefix_embed)[0]
-       else:
-           generated_text_prefix = generate2(model, tokenizer, embed=prefix_embed)
-       return generated_text_prefix
+        generated_text_prefixes = []
+        for image_path in image_paths:
+            image = io.imread(image_path)
+            pil_image = PIL.Image.fromarray(image)
+            image = preprocess(pil_image).unsqueeze(0).to(device)
+            with torch.no_grad():
+                prefix = clip_model.encode_image(image).to(device, dtype=torch.float32)
+                prefix_embed = model.clip_project(prefix).reshape(1, prefix_length, -1)
+            use_beam_search = False
+            if use_beam_search:
+                generated_text_prefix = generate_beam(model, tokenizer, embed=prefix_embed)[0]
+            else:
+                generated_text_prefix = generate2(model, tokenizer, embed=prefix_embed)
+            generated_text_prefixes.append(generated_text_prefix)
    except Exception as exc:
-       logger.exception(exc)
-       sentry_sdk.capture_exception(exc)
-       generated_text_prefix = ""
+        logger.exception(exc)
+        sentry_sdk.capture_exception(exc)
+        generated_text_prefix = ""
  
    total_time = time.time() - st_time
    logger.info(f"masked_lm exec time: {total_time:.3f}s")
-   return jsonify({"caption": generated_text_prefix})
+   return jsonify({"captions": generated_text_prefixes})

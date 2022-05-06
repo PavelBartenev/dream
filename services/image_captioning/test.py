@@ -3,7 +3,7 @@ import requests
 def test_respond():
     url = "http://0.0.0.0:8125/respond"
 
-    text = ["/home/admin/example.jpg"]
+    text = ["/src/example.jpg", "/src/example.jpg"]
 
     request_data = {"text": text}
 

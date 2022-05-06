@@ -8,21 +8,19 @@ ARG PRETRAINED_MODEL_PATH
 ENV PRETRAINED_MODEL_PATH ${PRETRAINED_MODEL_PATH}
 ARG SERVICE_PORT
 ENV SERVICE_PORT ${SERVICE_PORT}
- 
-COPY ./requirements.txt /src/requirements.txt
-RUN apt update
-RUN apt install git -y
-RUN pip install git+https://github.com/openai/CLIP.git
-RUN pip install gdown
 
+
+COPY ./setup.sh /src/setup.sh
+RUN  ["sh", "/src/setup.sh"]
+
+
+COPY ./requirements.txt /src/requirements.txt
 RUN pip install -r /src/requirements.txt
  
 RUN python -c 'from transformers import GPT2Tokenizer; GPT2Tokenizer.from_pretrained("gpt2");'
- 
+
 COPY . /src
-RUN gdown 1IdaBtMSvtyzF0ByVaBHtvM0JYSXRExRX
  
 HEALTHCHECK --interval=5s --timeout=90s --retries=3 CMD curl --fail 127.0.0.1:${SERVICE_PORT}/healthcheck || exit 1
- 
  
 CMD gunicorn --workers=1 server:app -b 0.0.0.0:${SERVICE_PORT} --timeout=300

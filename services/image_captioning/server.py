@@ -76,25 +76,30 @@ def respond():
  
    image_paths = request.json.get("text", [])
    try:
-        generated_text_prefixes = []
+        images = None
         for image_path in image_paths:
             image = io.imread(image_path)
             pil_image = PIL.Image.fromarray(image)
             image = preprocess(pil_image).unsqueeze(0).to(device)
-            with torch.no_grad():
-                prefix = clip_model.encode_image(image).to(device, dtype=torch.float32)
-                prefix_embed = model.clip_project(prefix).reshape(1, prefix_length, -1)
-            use_beam_search = False
-            if use_beam_search:
-                generated_text_prefix = generate_beam(model, tokenizer, embed=prefix_embed)[0]
+            if images is None:
+                images = image
             else:
-                generated_text_prefix = generate2(model, tokenizer, embed=prefix_embed)
-            generated_text_prefixes.append(generated_text_prefix)
+                images = torch.cat([images, image], dim=0)
+        with torch.no_grad():
+            prefixes = clip_model.encode_image(images).to(device, dtype=torch.float32)
+            prefixes_embed = model.clip_project(prefixes).reshape(len(image_paths), prefix_length, -1)
+        use_beam_search = False
+        if use_beam_search:
+            generated_text_prefixes = generate_beam(model, tokenizer, embed=prefixes_embed)
+        else:
+            generated_text_prefixes = generate2(model, tokenizer, embeds=prefixes_embed, batch_size=len(image_paths))
    except Exception as exc:
         logger.exception(exc)
         sentry_sdk.capture_exception(exc)
         generated_text_prefix = ""
  
    total_time = time.time() - st_time
-   logger.info(f"masked_lm exec time: {total_time:.3f}s")
+#    logger.info(generated_text_prefixes[0])
+#    logger.info(str(len(generated_text_prefixes)))
+   logger.info(f"image_captioning exec time: {total_time:.3f}s")
    return jsonify({"captions": generated_text_prefixes})
